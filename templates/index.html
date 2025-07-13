@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SQLite Contact Manager</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+<div class="container-fluid px-5 py-4">
+  <h1 class="text-primary mb-4">SQLite Contact Manager</h1>
+
+  <div class="row mb-3">
+    <div class="col-md-8 d-flex align-items-start">
+      <form class="d-flex flex-wrap me-3" method="get">
+        <input class="form-control me-2 mb-2" type="text" name="q" placeholder="Search" value="{{ query }}">
+        <select class="form-select me-2 mb-2" name="column">
+          <option value="all" {% if column == 'all' %}selected{% endif %}>All Columns</option>
+          <option value="first_name" {% if column == 'first_name' %}selected{% endif %}>First Name</option>
+          <option value="last_name" {% if column == 'last_name' %}selected{% endif %}>Last Name</option>
+          <option value="email" {% if column == 'email' %}selected{% endif %}>Email</option>
+          <option value="phone" {% if column == 'phone' %}selected{% endif %}>Phone</option>
+          <option value="last_note" {% if column == 'last_note' %}selected{% endif %}>Last Note</option>
+        </select>
+        <button class="btn btn-outline-primary mb-2" type="submit">Search</button>
+      </form>
+      <form method="get">
+        <select class="form-select" name="limit" onchange="this.form.submit()">
+          <option value="10" {% if limit == 10 %}selected{% endif %}>10</option>
+          <option value="30" {% if limit == 30 %}selected{% endif %}>30</option>
+          <option value="50" {% if limit == 50 %}selected{% endif %}>50</option>
+        </select>
+      </form>
+    </div>
+    <div class="col-md-4 text-end">
+      <form method="post" action="/upload" enctype="multipart/form-data" class="d-inline-block me-2">
+        <input type="file" class="form-control d-inline" name="file" style="width:auto; display:inline-block;">
+        <button class="btn btn-success mt-2" type="submit">Upload CSV</button>
+      </form>
+      <button class="btn btn-primary mt-2" data-bs-toggle="modal" data-bs-target="#addModal">Add Contact</button>
+    </div>
+  </div>
+
+  <div class="table-responsive" style="overflow-x:auto;">
+    <table class="table table-bordered table-sm align-middle table-striped text-nowrap">
+      <thead class="table-primary">
+        <tr>
+          <th>Contact Id</th><th>First</th><th>Last</th><th>Phone</th>
+          <th>Email</th><th>Last Activity</th><th>Assigned</th><th>Tags</th><th>Note</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for row in rows %}
+        <tr>
+          <td>{{ row['contact_id'] }}</td>
+          <td>{{ row['first_name'] }}</td>
+          <td>{{ row['last_name'] }}</td>
+          <td>{{ row['phone'] }}</td>
+          <td>{{ row['email'] }}</td>
+          <td>{{ row['last_activity'] }}</td>
+          <td>{{ row['assigned'] }}</td>
+          <td>{{ row['tags'] }}</td>
+          <td style="white-space: normal; word-break: break-word;">{{ row['last_note'] }}</td>
+          <td>
+            <form method="post" action="/delete" style="display:inline;">
+              <input type="hidden" name="contact_id" value="{{ row['contact_id'] }}">
+              <button class="btn btn-sm btn-danger">Delete</button>
+            </form>
+            <button class="btn btn-sm btn-warning" 
+                    data-bs-toggle="modal" 
+                    data-bs-target="#editModal"
+                    onclick='fillEditForm({{ row|tojson|safe }})'>
+              Edit
+            </button>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="d-flex justify-content-center mt-4">
+    <nav>
+      <ul class="pagination">
+        {% if page > 1 %}
+        <li class="page-item"><a class="page-link" href="?q={{ query }}&column={{ column }}&limit={{ limit }}&page={{ page-1 }}">Previous</a></li>
+        {% endif %}
+        <li class="page-item disabled"><span class="page-link">Page {{ page }} of {{ total_pages }}</span></li>
+        {% if page < total_pages %}
+        <li class="page-item"><a class="page-link" href="?q={{ query }}&column={{ column }}&limit={{ limit }}&page={{ page+1 }}">Next</a></li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
+</div>
+
+<!-- Add Modal -->
+<div class="modal fade" id="addModal" tabindex="-1" aria-labelledby="addModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <form method="post" action="/add" class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Add Contact</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body row g-3 px-3">
+        <div class="col-md-6"><input class="form-control" name="contact_id" placeholder="Contact Id" required></div>
+        <div class="col-md-6"><input class="form-control" name="first_name" placeholder="First Name"></div>
+        <div class="col-md-6"><input class="form-control" name="last_name" placeholder="Last Name"></div>
+        <div class="col-md-6"><input class="form-control" name="phone" placeholder="Phone"></div>
+        <div class="col-md-6"><input class="form-control" name="email" placeholder="Email"></div>
+        <div class="col-md-6"><input class="form-control" name="last_activity" placeholder="Last Activity"></div>
+        <div class="col-md-6"><input class="form-control" name="assigned" placeholder="Assigned"></div>
+        <div class="col-md-6"><input class="form-control" name="tags" placeholder="Tags"></div>
+        <div class="col-md-12"><input class="form-control" name="last_note" placeholder="Last Note"></div>
+      </div>
+      <div class="modal-footer"><button type="submit" class="btn btn-primary">Add Contact</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <form method="post" action="/edit" class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Edit Contact</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body row g-3 px-3">
+        <input type="hidden" id="edit_contact_id" name="contact_id">
+        <div class="col-md-6"><input class="form-control" id="edit_first_name" name="first_name" placeholder="First Name"></div>
+        <div class="col-md-6"><input class="form-control" id="edit_last_name" name="last_name" placeholder="Last Name"></div>
+        <div class="col-md-6"><input class="form-control" id="edit_phone" name="phone" placeholder="Phone"></div>
+        <div class="col-md-6"><input class="form-control" id="edit_email" name="email" placeholder="Email"></div>
+        <div class="col-md-6"><input class="form-control" id="edit_last_activity" name="last_activity" placeholder="Last Activity"></div>
+        <div class="col-md-6"><input class="form-control" id="edit_assigned" name="assigned" placeholder="Assigned"></div>
+        <div class="col-md-6"><input class="form-control" id="edit_tags" name="tags" placeholder="Tags"></div>
+        <div class="col-md-12"><input class="form-control" id="edit_last_note" name="last_note" placeholder="Last Note"></div>
+      </div>
+      <div class="modal-footer"><button type="submit" class="btn btn-warning">Update Contact</button></div>
+    </form>
+  </div>
+</div>
+
+<script>
+function fillEditForm(data) {
+  document.getElementById('edit_contact_id').value = data.contact_id || '';
+  document.getElementById('edit_first_name').value = data.first_name || '';
+  document.getElementById('edit_last_name').value = data.last_name || '';
+  document.getElementById('edit_phone').value = data.phone || '';
+  document.getElementById('edit_email').value = data.email || '';
+  document.getElementById('edit_last_activity').value = data.last_activity || '';
+  document.getElementById('edit_assigned').value = data.assigned || '';
+  document.getElementById('edit_tags').value = data.tags || '';
+  document.getElementById('edit_last_note').value = data.last_note || '';
+}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
